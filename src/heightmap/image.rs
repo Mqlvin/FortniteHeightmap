@@ -148,16 +148,7 @@ pub fn rasterize_heightmap(
     Ok(hm)
 }
 
-pub fn save_heightmap_png(path: &str, data: &[f32], width: u32, height: u32) -> Result<(), GenerationError> {
-    let finite: Vec<f32> = data.iter().copied().filter(|v| v.is_finite()).collect();
-    let (vmin, vmax) = if finite.is_empty() {
-        (0.0f32, 1.0f32)
-    } else {
-        let min = finite.iter().fold(f32::INFINITY, |a, &b| a.min(b));
-        let max = finite.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-        (min, max)
-    };
-
+pub fn save_heightmap_png(path: &str, data: &[f32], width: u32, height: u32, vmin: f32, vmax: f32) -> Result<(), GenerationError> {
     let mut img: ImageBuffer<Luma<u16>, Vec<u16>> = ImageBuffer::new(width, height);
     for (i, px) in img.pixels_mut().enumerate() {
         let v = data[i];
@@ -170,7 +161,6 @@ pub fn save_heightmap_png(path: &str, data: &[f32], width: u32, height: u32) -> 
         *px = Luma([u]);
     }
 
-    // Open file and write PNG explicitly regardless of extension
     let fout = File::create(path).map_err(|e| GenerationError::FileIO(e))?;
     let mut writer = BufWriter::new(fout);
     img.write_to(&mut writer, image::ImageFormat::Png)

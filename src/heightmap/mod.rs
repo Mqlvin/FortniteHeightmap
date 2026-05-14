@@ -1,6 +1,6 @@
-use std::{collections::HashMap, path::{Path, PathBuf}};
+use std::{collections::HashMap, fs, path::{Path, PathBuf}};
 use ueformat_to_stl::ueformat::{get_vertices_indices_normals, open_uefile};
-use crate::{chunk::{identify_chunks, identify_meshes}, heightmap::{error::GenerationError, export::{ExportData, write_export}, image::{rasterize_heightmap, save_heightmap_png}, math::{flat_vec3, transform_vertices}, mesh::{MeshData, MeshEntry}}};
+use crate::{chunk::{get_terrain_chunk, identify_chunks, identify_meshes}, heightmap::{error::GenerationError, export::{ExportData, write_export}, image::{rasterize_heightmap, save_heightmap_png}, math::{flat_vec3, transform_vertices}, mesh::{MeshData, MeshEntry}}};
 
 mod math;
 mod image;
@@ -8,9 +8,16 @@ mod export;
 pub mod mesh;
 pub mod error;
 
-pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_path: &str, output_size: u32) -> Result<(), GenerationError> {
+pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_directory: &str, output_size: u32, save_terrain_separately: bool) -> Result<(), GenerationError> {
+    fs::create_dir(save_directory).map_err(|e| GenerationError::FileIO(e))?;
+
     let chunk_files: Vec<PathBuf> = identify_chunks(chunk_directory)?;
+    let terrain_chunk = get_terrain_chunk(&chunk_files);
+    if save_terrain_separately && terrain_chunk.is_none() { // do this up here to not waste users time if it is None
+        return Err(GenerationError::ChunkError("Couldn't identify terrains chunk".to_string().into()));
+    }
     println!("Identified {} PAKCHUNKS", chunk_files.len());
+
 
     let meshes: Vec<MeshEntry> = identify_meshes(&chunk_files)?;
     println!("Identified {} meshes", meshes.len());
@@ -41,8 +48,38 @@ pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_pa
         output_size,
     )?;
 
-    println!("Saving height data as image");
-    save_heightmap_png(save_path, &result, output_size, output_size)?;
+    println!("Saving map height data as image");
+    let save_path = format!("{}/heightmap.png", save_directory);
+    save_heightmap_png(&save_path, &result, output_size, output_size, min_z as f32, max_z as f32)?;
+
+
+    if save_terrain_separately {
+        // unfortunately this has to be here. we must load all vertices of all meshes to identify
+        // bounds or else map dimensions will potentially be mismatched. further, by using the same
+        // min_z and max_z as the real map the two heightmaps will have identical greys for
+        // identical heights.
+
+        println!("Saving separate terrain heightmap");
+        
+        let terrain_meshes = identify_meshes(&vec![terrain_chunk.expect("Already unwrapped").clone()])?;
+        let (vertices_terrain, faces_terrain) = load_all_vertices_faces(&terrain_meshes, assets_directory)?;
+        let terrain_result = rasterize_heightmap(&vertices_terrain,
+            &faces_terrain,
+            min_x,
+            max_x,
+            min_y,
+            max_y,
+            min_z.floor() - 1.,
+            max_z.floor() + 1.,
+            output_size,
+            output_size
+        )?;
+
+        println!("Saving terrain height data as image");
+        let save_path = format!("{}/terrainmap.png", save_directory);
+        save_heightmap_png(&save_path, &terrain_result, output_size, output_size, min_z as f32, max_z as f32)?;
+    }
+
 
     // getting height of a single wall here
     let height_span = max_z.ceil() + 1. - (min_z.floor() - 1.);
@@ -59,7 +96,7 @@ pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_pa
         total_meshes: meshes.len()
     };
 
-    if let Err(err) = write_export(&format!("{}.json", save_path), &export_data) {
+    if let Err(err) = write_export(&format!("{}/mapdata.json", save_directory), &export_data) {
         return Err(err);
     }
 

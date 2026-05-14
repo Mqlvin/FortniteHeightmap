@@ -43,3 +43,13 @@ pub fn identify_meshes(chunks: &Vec<PathBuf>) -> Result<Vec<MeshEntry>, Generati
     Ok(meshes)
 }
 
+pub fn get_terrain_chunk(chunks: &Vec<PathBuf>) -> Option<&PathBuf> {
+    chunks
+        .iter()
+        .filter_map(|p| {
+            let name = p.file_name()?.to_str()?;
+            Some((p, name))
+        })
+        .find(|(_, name)| name.len() != 25 && !name.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit()))
+        .map(|(path, _)| path)
+}

@@ -1,6 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use std::time::{SystemTime, UNIX_EPOCH};
 use eframe::egui;
 use crate::heightmap::{error::GenerationError, generate_heightmap};
 
@@ -93,12 +92,12 @@ impl eframe::App for MyApp {
 
                 ui.label("Generate heightmap: ");
                 if ui.add_sized([60.0, 32.0], egui::Button::new("Generate")).clicked() {
-                    let path = format!("./heightmap_{}.png", SystemTime::now().duration_since(UNIX_EPOCH).expect("Time didn't go backwards").as_secs());
                     let heightmap_result = generate_heightmap(
                         &self.chunks_directory.as_ref().unwrap(),
                         &self.assets_directory.as_ref().unwrap(),
-                        &path,
-                        self.resolution
+                        "./out",
+                        self.resolution,
+                        true
                     );
 
                     if let Err(err) = heightmap_result {
