@@ -18,7 +18,7 @@ pub fn run() -> eframe::Result {
             ..Default::default()
     };
     eframe::run_native(
-        "Native file dialogs and drag-and-drop files",
+        "Fortnite Heightmap Generator",
         options,
         Box::new(|_cc| Ok(Box::<MyApp>::default())),
     )
@@ -159,6 +159,11 @@ impl eframe::App for MyApp {
                 } else {
                     ui.colored_label(Color32::from_rgb(200, 235, 200), "Ready to generate");
                 }
+            });
+            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+                ui.disable();
+                ui.label("♥ by Mqlvin");
+                ui.label("Made with");
             });
         });
     }

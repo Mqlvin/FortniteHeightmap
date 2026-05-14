@@ -9,7 +9,7 @@ pub mod mesh;
 pub mod error;
 
 pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_directory: &str, output_size: u32, save_terrain_separately: bool) -> Result<(), GenerationError> {
-    fs::create_dir(save_directory).map_err(|e| GenerationError::FileIO(e))?;
+    fs::create_dir_all(save_directory).map_err(|e| GenerationError::FileIO(e))?;
 
     let chunk_files: Vec<PathBuf> = identify_chunks(chunk_directory)?;
     let terrain_chunk = get_terrain_chunk(&chunk_files);
@@ -52,6 +52,7 @@ pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_di
     let save_path = format!("{}/heightmap.png", save_directory);
     save_heightmap_png(&save_path, &result, output_size, output_size, min_z as f32, max_z as f32)?;
 
+    drop(vertices_all); drop(faces_all); // drop memory here in before loading just terrain mesh data
 
     if save_terrain_separately {
         // unfortunately this has to be here. we must load all vertices of all meshes to identify
@@ -93,6 +94,7 @@ pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_di
         min_z,
         max_z,
         tile_height_16bit,
+        tile_width_16bit: 0, // TODO
         total_meshes: meshes.len()
     };
 

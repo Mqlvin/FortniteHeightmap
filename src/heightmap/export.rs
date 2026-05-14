@@ -12,6 +12,7 @@ pub struct ExportData {
     pub max_z: f32,
     
     pub tile_height_16bit: u16,
+    pub tile_width_16bit: u16,
     pub total_meshes: usize,
 }
 
