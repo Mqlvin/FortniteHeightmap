@@ -1,13 +1,11 @@
-use std::{collections::HashMap, fs, path::{Path, PathBuf}};
-
+use std::{collections::HashMap, path::{Path, PathBuf}};
 use ueformat_to_stl::ueformat::{get_vertices_indices_normals, open_uefile};
-
-use crate::heightmap::{error::GenerationError, export::{ExportData, write_export}, image::{rasterize_heightmap, save_heightmap_png}, math::{flat_vec3, transform_vertices}, mesh::{ChunkFile, MeshData, MeshEntry}};
+use crate::{chunk::{identify_chunks, identify_meshes}, heightmap::{error::GenerationError, export::{ExportData, write_export}, image::{rasterize_heightmap, save_heightmap_png}, math::{flat_vec3, transform_vertices}, mesh::{MeshData, MeshEntry}}};
 
 mod math;
 mod image;
-mod mesh;
 mod export;
+pub mod mesh;
 pub mod error;
 
 pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_path: &str, output_size: u32) -> Result<(), GenerationError> {
@@ -68,33 +66,6 @@ pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_pa
     Ok(())
 }
 
-
-// identify chunks of exports to load
-fn identify_chunks(dir: &str) -> Result<Vec<PathBuf>, GenerationError> {
-    Ok(fs::read_dir(dir)
-        .map_err(GenerationError::FileIO)?
-        .map(|entry| entry.map_err(GenerationError::FileIO))
-        .map(|entry| entry.map(|e| e.path()))
-        .filter_map(|result| match result {
-            Ok(path) if path.is_file() => Some(Ok(path)),
-            Ok(_) => None,
-            Err(err) => Some(Err(err)),
-        })
-        .collect::<Result<Vec<_>, _>>()?)
-}
-
-// identify meshes in scene
-fn identify_meshes(chunks: &Vec<PathBuf>) -> Result<Vec<MeshEntry>, GenerationError> {
-    let mut meshes: Vec<MeshEntry> = Vec::with_capacity(chunks.len() * 200); // avg about 200 meshes / chunk
-    for file in chunks {
-        let text = fs::read_to_string(file).map_err(|e| GenerationError::FileIO(e))?;
-        let chunk_data: ChunkFile = serde_json::from_str(&text).map_err(|e| GenerationError::ChunkError(Box::new(e)))?;
-        if let Some(export) = chunk_data.exports.get(0) {
-            meshes.extend(export.meshes.clone());           
-        }
-    }
-    Ok(meshes)
-}
 
 // load + transform vertices of all actors in world
 fn load_all_vertices_faces(meshes: &Vec<MeshEntry>, assets_directory: &str) -> Result<(Vec<[f32; 3]>, Vec<[usize; 3]>), GenerationError> {

@@ -1,10 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use std::{fs::File, io::{BufWriter, Write}, time::{SystemTime, UNIX_EPOCH}};
-
+use std::time::{SystemTime, UNIX_EPOCH};
 use eframe::egui;
-use egui::Visuals;
-
 use crate::heightmap::{error::GenerationError, generate_heightmap};
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -1,7 +1,5 @@
 use std::{fs::File, io::Write};
-
 use serde::Serialize;
-
 use crate::heightmap::error::GenerationError;
 
 #[derive(Serialize)]

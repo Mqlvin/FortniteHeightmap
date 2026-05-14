@@ -1,5 +1,4 @@
 use std::f32::consts::PI;
-
 use crate::heightmap::mesh::Vec3;
 
 

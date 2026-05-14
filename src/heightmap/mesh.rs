@@ -1,17 +1,5 @@
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
-pub struct ChunkFile {
-    #[serde(rename = "Exports")]
-    pub exports: Vec<Export>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Export {
-    #[serde(rename = "Meshes")]
-    pub meshes: Vec<MeshEntry>,
-}
-
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Vec3 {
