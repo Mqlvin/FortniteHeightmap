@@ -2,11 +2,12 @@ use std::{collections::HashMap, fs, path::{Path, PathBuf}};
 
 use ueformat_to_stl::ueformat::{get_vertices_indices_normals, open_uefile};
 
-use crate::heightmap::{error::GenerationError, image::{rasterize_heightmap, save_heightmap_png}, math::{flat_vec3, transform_vertices}, mesh::{ChunkFile, MeshData, MeshEntry}};
+use crate::heightmap::{error::GenerationError, export::{ExportData, write_export}, image::{rasterize_heightmap, save_heightmap_png}, math::{flat_vec3, transform_vertices}, mesh::{ChunkFile, MeshData, MeshEntry}};
 
 mod math;
 mod image;
 mod mesh;
+mod export;
 pub mod error;
 
 pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_path: &str, output_size: u32) -> Result<(), GenerationError> {
@@ -27,9 +28,6 @@ pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_pa
     let min_z = vertices_all.iter().map(|v| v[2]).fold(f32::INFINITY, f32::min);
     let max_z = vertices_all.iter().map(|v| v[2]).fold(f32::NEG_INFINITY, f32::max);
 
-    let z_min = min_z.floor() - 1.0;
-    let z_max = max_z.ceil() + 1.0;
-
     println!("Got minmax: {} {} {} {} {} {}", min_x, max_x, min_y, max_y, min_z, max_z);
 
     let result = rasterize_heightmap(
@@ -39,14 +37,33 @@ pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_pa
         max_x,
         min_y,
         max_y,
-        z_min,
-        z_max,
+        min_z.floor() - 1., // give a bit of room
+        max_z.ceil() + 1.,
         output_size,
         output_size,
     )?;
 
     println!("Saving height data as image");
     save_heightmap_png(save_path, &result, output_size, output_size)?;
+
+    // getting height of a single wall here
+    let height_span = max_z.ceil() + 1. - (min_z.floor() - 1.);
+    let tile_height_16bit = ((384. / height_span) * 65535.).round() as u16;
+
+    let export_data = ExportData {
+        min_x,
+        max_x,
+        min_y,
+        max_y,
+        min_z,
+        max_z,
+        tile_height_16bit,
+        total_meshes: meshes.len()
+    };
+
+    if let Err(err) = write_export(&format!("{}.json", save_path), &export_data) {
+        return Err(err);
+    }
 
     Ok(())
 }

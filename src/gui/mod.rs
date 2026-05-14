@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use std::{fs::File, io::{BufWriter, Write}, time::{SystemTime, UNIX_EPOCH}};
+
 use eframe::egui;
 use egui::Visuals;
 
@@ -34,13 +36,12 @@ impl eframe::App for MyApp {
 
         let frame_design = egui::containers::Frame {
             inner_margin: egui::epaint::Margin { left: 20, right: 20, top: 20, bottom: 20 },
-            fill: egui::Color32::from_rgb(230, 225, 220),
+            fill: egui::Color32::from_rgb(30, 30, 30),
             ..Default::default()
         };
 
         egui::CentralPanel::default().frame(frame_design).show_inside(ui, |ui| {
             ui.set_pixels_per_point(1.1);
-            ui.set_visuals(Visuals::light()); // light mode
 
             ui.heading("Fornite Heightmap Generator");
 
@@ -95,20 +96,19 @@ impl eframe::App for MyApp {
 
                 ui.label("Generate heightmap: ");
                 if ui.add_sized([60.0, 32.0], egui::Button::new("Generate")).clicked() {
-                    if let Some(path) = rfd::FileDialog::new().save_file() {
-                        self.generation_error = match generate_heightmap(
-                            &self.chunks_directory.as_ref().unwrap(),
-                            &self.assets_directory.as_ref().unwrap(),
-                            &path.to_str().expect("A save directory"),
-                            self.resolution
-                        ) {
-                            Ok(()) => None,
-                            Err(err) => Some(err)
-                        };
+                    let path = format!("./heightmap_{}.png", SystemTime::now().duration_since(UNIX_EPOCH).expect("Time didn't go backwards").as_secs());
+                    let heightmap_result = generate_heightmap(
+                        &self.chunks_directory.as_ref().unwrap(),
+                        &self.assets_directory.as_ref().unwrap(),
+                        &path,
+                        self.resolution
+                    );
+
+                    if let Err(err) = heightmap_result {
+                        self.generation_error = Some(err);
                     }
                 };
             });
-            
         });
     }
 }

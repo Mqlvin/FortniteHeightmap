@@ -1,6 +1,6 @@
 use image::{ImageBuffer, Luma};
 use rayon::prelude::*;
-use std::sync::Mutex;
+use std::{fs::File, io::BufWriter, sync::Mutex};
 
 use crate::heightmap::{error::GenerationError, math::edge};
 
@@ -151,7 +151,7 @@ pub fn rasterize_heightmap(
 pub fn save_heightmap_png(path: &str, data: &[f32], width: u32, height: u32) -> Result<(), GenerationError> {
     let finite: Vec<f32> = data.iter().copied().filter(|v| v.is_finite()).collect();
     let (vmin, vmax) = if finite.is_empty() {
-        (0.0, 1.0)
+        (0.0f32, 1.0f32)
     } else {
         let min = finite.iter().fold(f32::INFINITY, |a, &b| a.min(b));
         let max = finite.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
@@ -170,6 +170,11 @@ pub fn save_heightmap_png(path: &str, data: &[f32], width: u32, height: u32) -> 
         *px = Luma([u]);
     }
 
-    img.save(path).map_err(|e| GenerationError::ImageWriteError(e))?;
+    // Open file and write PNG explicitly regardless of extension
+    let fout = File::create(path).map_err(|e| GenerationError::FileIO(e))?;
+    let mut writer = BufWriter::new(fout);
+    img.write_to(&mut writer, image::ImageFormat::Png)
+        .map_err(|e| GenerationError::ImageWriteError(e))?;
+
     Ok(())
 }
