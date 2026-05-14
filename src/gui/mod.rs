@@ -142,7 +142,7 @@ impl eframe::App for MyApp {
                         &self.assets_directory.as_ref().unwrap(),
                         "./out",
                         self.resolution,
-                        true
+                        self.export_terrain_map
                     );
 
                     if let Err(err) = heightmap_result {
