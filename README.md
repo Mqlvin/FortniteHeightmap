@@ -8,7 +8,7 @@
 ## Features
 - Generates a full-map heightmap
 - Generates a terrain-only heightmap *(optionally)*
-- Up to 8K resolution output
+- Up to 16K resolution output
 - 16-bit greyscale image output
 - Exports heightmap data *(etc. wall height as grey difference)*
 
