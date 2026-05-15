@@ -18,4 +18,6 @@
 - [Blender](https://www.blender.org/download/) must be downloaded, although you never actually have to use it
 
 ## Usage
-Coming soon...
+Clone or download the repository, and ensure you have the prerequisites installed.
+
+Then, [follow the usage instructions here](USAGE.md)
