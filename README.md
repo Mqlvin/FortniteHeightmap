@@ -24,5 +24,6 @@ If you don't have `cargo` or `python`, you may want to download prebuilt binarie
 Then, follow the [usage instructions here](USAGE.md)
 
 ## Issues running? Bugs?
-If you have any issues running this software, please create an Issue on the Issues tab.
-**Do not** go to FortnitePorting's Discord server for support for this software, because 1. I won't see your issue, and 2. it means nothing to them. :)
+If you have any issues running this software, please create a GitHub issue in this repository.
+<br><br>
+**Do not** go to FortnitePorting's Discord server for support for this software, because 1. I won't see your issue, and 2. it means nothing to them :)
