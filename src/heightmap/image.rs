@@ -23,6 +23,15 @@ pub fn rasterize_heightmap(
     if x_span == 0.0 || y_span == 0.0 || z_span == 0.0 {
         return Err(GenerationError::MapRasterizationError("Bounds must have non-zero extent".to_string()));
     }
+
+    let scale_x = (width as f32 - 1.0) / x_span;
+    let scale_y = (height as f32 - 1.0) / y_span;
+    let scale = scale_x.max(scale_y); // max to scale image up
+    let out_w = x_span * scale;
+    let out_h = y_span * scale;
+    let pad_x = (width as f32 - out_w) * 0.5;
+    let pad_y = (height as f32 - out_h) * 0.5;
+
     let hm = Mutex::new(vec![f32::NAN; (width * height) as usize]);
     let eps = 1e-7f32;
 
@@ -32,8 +41,9 @@ pub fn rasterize_heightmap(
         let v2 = vertices[face[2]];
 
         let to_screen = |v: [f32; 3]| -> [f32; 3] {
-            let sx = (v[0] - x_min) / x_span * (width as f32 - 1.0);
-            let sy = (v[1] - y_min) / y_span * (height as f32 - 1.0);
+            // use unified scale and center offsets (pad_x/pad_y)
+            let sx = (v[0] - x_min) * scale + pad_x;
+            let sy = (v[1] - y_min) * scale + pad_y;
             let rz = (v[2] - z_min) / z_span; // not clamped
             [sx, sy, rz]
         };
@@ -94,7 +104,6 @@ pub fn rasterize_heightmap(
                 }
 
                 let mut on_edge_reject = false;
-                // check each edge that is near-zero
                 if w0.abs() <= eps {
                     if !is_top_left(b[0], b[1], c[0], c[1]) {
                         on_edge_reject = true;
@@ -148,17 +157,35 @@ pub fn rasterize_heightmap(
     Ok(hm)
 }
 
-pub fn save_heightmap_png(path: &str, data: &[f32], width: u32, height: u32, vmin: f32, vmax: f32) -> Result<(), GenerationError> {
-    let mut img: ImageBuffer<Luma<u16>, Vec<u16>> = ImageBuffer::new(width, height);
-    for (i, px) in img.pixels_mut().enumerate() {
-        let v = data[i];
+pub fn save_heightmap_png(
+    path: &str,
+    data: &[f32],
+    width: u32,
+    height: u32,
+    vmin: f32,
+    vmax: f32,
+) -> Result<(), GenerationError> {
+    let out_width = height;
+    let out_height = width;
+    let mut img: ImageBuffer<Luma<u16>, Vec<u16>> = ImageBuffer::new(out_width, out_height);
+
+    for (i, v) in data.iter().enumerate() {
+        let v = *v;
         let u = if !v.is_finite() || (vmin == vmax) {
             32768u16
         } else {
             let t = ((v - vmin) / (vmax - vmin)).clamp(0.0, 1.0);
             (t * 65535.0).round() as u16
         };
-        *px = Luma([u]);
+
+        let idx = i as u32;
+        let x = idx % width;
+        let y = idx / width;
+
+        let xf = out_width - 1 - y;
+        let yf = out_height - 1 - x;
+
+        img.put_pixel(xf, yf, Luma([u]));
     }
 
     let fout = File::create(path).map_err(|e| GenerationError::FileIO(e))?;
@@ -168,3 +195,4 @@ pub fn save_heightmap_png(path: &str, data: &[f32], width: u32, height: u32, vmi
 
     Ok(())
 }
+
