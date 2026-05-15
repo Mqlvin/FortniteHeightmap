@@ -10,7 +10,7 @@
 - Generates a terrain-only heightmap *(optionally)*
 - Up to 16K resolution output
 - 16-bit greyscale image output
-- Exports heightmap data *(etc. wall height as grey difference)*
+- Exports heightmap data *(etc. map size, wall height as grey difference)*
 
 ## Prerequisites
 - The Fortnite game must be installed, and you must have played on the map(s) you would like to export
@@ -19,5 +19,6 @@
 
 ## Usage
 Clone or download the repository, and ensure you have the prerequisites installed.
+If you don't have `cargo` or `python`, you may want to download prebuilt binaries from the Releases tab.
 
-Then, [follow the usage instructions here](USAGE.md)
+Then, follow the [usage instructions here](USAGE.md)
