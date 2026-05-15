@@ -8,12 +8,12 @@ def handle_pakchunk(chunk: json, print_dirs: bool):
 
     exports, name = split_pakchunk(chunk)
     if len(exports) == 0:
-        print("No exports in PAKCHUNK, skipping")
+        # print(f"No exports in PAKCHUNK {name}; skipping")
         return
 
     pre_cull = len(exports)
-    exports = cull_exports(exports)
-    print(f"Culled: {pre_cull - len(exports)} ({round((pre_cull - len(exports)) / pre_cull, 1)}) objects from {name}")
+    exports = cull_exports(exports) if not is_terrain_chunk(name) else only_keep_streamingproxylandscape(exports)
+    # print(f"Culled: {pre_cull - len(exports)} objects from {name}")
 
     chunk["Exports"][0]["Meshes"] = exports
     helpers.write_pakchunk(chunk, name)
@@ -23,6 +23,7 @@ def handle_pakchunk(chunk: json, print_dirs: bool):
         print("When using the heightmap generator, you will need to input the following folders:")
         print(f"Assets path: '{os.path.abspath(asset_root)}'")
         print(f"Chunks path: '{os.path.abspath(helpers.get_save_directory(''))}'")
+        print("Please wait for FortnitePorting to finish exporting...")
 
 
 def split_pakchunk(chunk: json):
@@ -43,6 +44,10 @@ def cull_exports(exports):
     exports = list(filter(lambda e: not cull(e), exports))
     return exports
 
+def only_keep_streamingproxylandscape(exports):
+    exports = list(filter(lambda e: "LandscapeStreamingProxy" in e["Path"], exports))
+    return exports
+
 def cull(mesh_obj: any):
     mesh_path = mesh_obj["Path"]
     mesh_name = helpers.get_asset_name_from_path(mesh_path)
@@ -59,3 +64,11 @@ def cull(mesh_obj: any):
             return True
 
     return False
+
+
+def is_terrain_chunk(chunk_name: str) -> bool:
+    if not chunk_name:
+        return False
+
+    return len(chunk_name) != 25 \
+        and not all((c.isascii() and c.isupper()) or c.isdigit() for c in chunk_name)
