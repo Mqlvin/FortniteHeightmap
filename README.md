@@ -22,3 +22,7 @@ Clone or download the repository, and ensure you have the prerequisites installe
 If you don't have `cargo` or `python`, you may want to download prebuilt binaries from the Releases tab.
 
 Then, follow the [usage instructions here](USAGE.md)
+
+## Issues running? Bugs?
+If you have any issues running this software, please create an Issue on the Issues tab.
+**Do not** go to FortnitePorting's Discord server for support for this software, because 1. I won't see your issue, and 2. it means nothing to them. :)
