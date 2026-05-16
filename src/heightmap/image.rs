@@ -26,7 +26,7 @@ pub fn rasterize_heightmap(
 
     let scale_x = (width as f32 - 1.0) / x_span;
     let scale_y = (height as f32 - 1.0) / y_span;
-    let scale = scale_x.max(scale_y); // max to scale image up
+    let scale = scale_x.min(scale_y);
     let out_w = x_span * scale;
     let out_h = y_span * scale;
     let pad_x = (width as f32 - out_w) * 0.5;
