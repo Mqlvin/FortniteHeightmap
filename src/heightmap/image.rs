@@ -15,7 +15,7 @@ pub fn rasterize_heightmap(
     z_max: f32,
     width: u32,
     height: u32
-) -> Result<Vec<f32>, GenerationError> {
+) -> Result<(Vec<f32>, f32), GenerationError> {
     let x_span = x_max - x_min;
     let y_span = y_max - y_min;
     let z_span = z_max - z_min;
@@ -154,7 +154,7 @@ pub fn rasterize_heightmap(
         }
     }
 
-    Ok(hm)
+    Ok((hm, scale))
 }
 
 pub fn save_heightmap_png(

@@ -35,7 +35,7 @@ pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_di
 
     println!("Got minmax: {} {} {} {} {} {}", min_x, max_x, min_y, max_y, min_z, max_z);
 
-    let result = rasterize_heightmap(
+    let (result, scale_used) = rasterize_heightmap(
         &vertices_all,
         &faces_all,
         min_x,
@@ -64,7 +64,8 @@ pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_di
         
         let terrain_meshes = identify_meshes(&vec![terrain_chunk.expect("Already unwrapped").clone()])?;
         let (vertices_terrain, faces_terrain) = load_all_vertices_faces(&terrain_meshes, assets_directory)?;
-        let terrain_result = rasterize_heightmap(&vertices_terrain,
+        let (terrain_result, _) = rasterize_heightmap(
+            &vertices_terrain,
             &faces_terrain,
             min_x,
             max_x,
@@ -84,7 +85,7 @@ pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_di
 
     // getting height of a single wall here
     let height_span = max_z.ceil() + 1. - (min_z.floor() - 1.);
-    let tile_height_16bit = ((384. / height_span) * 65535.).round() as u16;
+    let metre_16bit = (6553500. / height_span).round() as u16;
 
     let export_data = ExportData {
         min_x,
@@ -93,8 +94,8 @@ pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_di
         max_y,
         min_z,
         max_z,
-        tile_height_16bit,
-        tile_width_16bit: 0, // TODO
+        metre_16bit,
+        metre_px: scale_used * 100.,
         total_meshes: meshes.len()
     };
 
