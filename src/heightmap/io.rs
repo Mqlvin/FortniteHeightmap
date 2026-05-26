@@ -63,78 +63,34 @@ pub fn save_heightmap_png(
     data: &[f32],
     width: u32,
     height: u32,
-    vmin: f32,
-    vmax: f32,
-    settings: &AdvancedSettings,
+    grey_per_unit: f32,
+    grey_base: f32,
 ) -> Result<(), GenerationError> {
-    let trim_top = settings.trim_top.clamp(0.0, 100.0) * 0.01;
-    let trim_right = settings.trim_right.clamp(0.0, 100.0) * 0.01;
-    let trim_bottom = settings.trim_bottom.clamp(0.0, 100.0) * 0.01;
-    let trim_left = settings.trim_left.clamp(0.0, 100.0) * 0.01;
-
-    let crop_x0 = (width as f32 * trim_left).round() as u32;
-    let crop_x1 = (width as f32 * trim_right).round() as u32;
-    let crop_y0 = (height as f32 * trim_top).round() as u32;
-    let crop_y1 = (height as f32 * trim_bottom).round() as u32;
-
-    let crop_w = width.saturating_sub(crop_x0 + crop_x1).max(1);
-    let crop_h = height.saturating_sub(crop_y0 + crop_y1).max(1);
-
-    let mut crop_vmin = f32::INFINITY;
-    let mut crop_vmax = f32::NEG_INFINITY;
-
-    for y in 0..crop_h {
-        for x in 0..crop_w {
-            let src_x = crop_x0 + x;
-            let src_y = crop_y0 + y;
-            let i = (src_y * width + src_x) as usize;
-            let v = data[i];
-            if v.is_finite() {
-                crop_vmin = crop_vmin.min(v);
-                crop_vmax = crop_vmax.max(v);
-            }
-        }
-    }
-
-    if !crop_vmin.is_finite() || !crop_vmax.is_finite() {
-        crop_vmin = vmin;
-        crop_vmax = vmax;
-    }
-
-    let out_width = crop_h.max(1);
-    let out_height = crop_w.max(1);
+    let out_width = height;
+    let out_height = width;
     let mut img: ImageBuffer<Luma<u16>, Vec<u16>> = ImageBuffer::new(out_width, out_height);
 
-    for y in 0..crop_h {
-        for x in 0..crop_w {
-            let src_x = crop_x0 + x;
-            let src_y = crop_y0 + y;
-            let i = (src_y * width + src_x) as usize;
-            let v = data[i];
+    for (i, v) in data.iter().enumerate() {
+        let u = if !v.is_finite() {
+            32768u16
+        } else {
+            (grey_base + v * grey_per_unit).clamp(0.0, 65535.0).round() as u16
+        };
 
-            let u = if !v.is_finite() || (crop_vmin == crop_vmax) {
-                32768u16
-            } else {
-                let t = ((v - crop_vmin) / (crop_vmax - crop_vmin)).clamp(0.0, 1.0);
-                if let (Some(lo), Some(hi)) = (settings.override_min_luma, settings.override_max_luma) {
-                    let lo = lo as f32;
-                    let hi = hi as f32;
-                    (lo + t * (hi - lo)).round() as u16
-                } else {
-                    (t * 65535.0).round() as u16
-                }
-            };
+        let idx = i as u32;
+        let x = idx % width;
+        let y = idx / width;
 
-            let xf = crop_h - 1 - y;
-            let yf = crop_w - 1 - x;
-            img.put_pixel(xf, yf, Luma([u]));
-        }
+        let xf = y;
+        let yf = out_height - 1 - x;
+
+        img.put_pixel(xf, yf, Luma([u]));
     }
 
-    let fout = File::create(path).map_err(GenerationError::FileIO)?;
+    let fout = File::create(path).map_err(|e| GenerationError::FileIO(e))?;
     let mut writer = BufWriter::new(fout);
     img.write_to(&mut writer, image::ImageFormat::Png)
-        .map_err(GenerationError::ImageWriteError)?;
+        .map_err(|e| GenerationError::ImageWriteError(e))?;
 
     Ok(())
 }
