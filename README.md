@@ -6,11 +6,11 @@
 *Generates heightmaps including terrain, trees, buildings and all other collidable objects*
 
 ## Features
-- Generates a full-map heightmap
+- Generates an all-mesh heightmap
 - Generates a terrain-only heightmap *(optionally)*
 - Up to 16K resolution output
 - 16-bit greyscale image output
-- Exports heightmap data *(etc. map size, wall height as grey difference)*
+- Exports heightmap data *(etc. map size, map scale, grey-difference as height)*
 
 ## Prerequisites
 - The Fortnite game must be installed, and you must have played on the map(s) you would like to export
