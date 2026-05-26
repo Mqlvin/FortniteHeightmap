@@ -1,8 +1,8 @@
 use std::{fs, path::PathBuf};
-use crate::{chunk::{get_terrain_chunk, identify_chunks, identify_meshes}, heightmap::{error::GenerationError, export::{ExportData, write_export}, image::{rasterize_heightmap, save_heightmap_png}}, mesh::{MeshEntry, load_all_vertices_faces}};
+use crate::{chunk::{get_terrain_chunk, identify_chunks, identify_meshes}, heightmap::{error::GenerationError, io::{ExportData, save_heightmap_png, write_export}, rasterize::rasterize_heightmap}, mesh::{MeshEntry, load_all_vertices_faces}};
 
-mod image;
-mod export;
+mod rasterize;
+mod io;
 pub mod error;
 
 pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_directory: &str, output_size: u32, save_terrain_separately: bool) -> Result<(), GenerationError> {
