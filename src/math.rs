@@ -1,5 +1,5 @@
 use std::f32::consts::PI;
-use crate::heightmap::mesh::Vec3;
+use crate::mesh::Vec3;
 
 
 pub fn flat_vec3(v: &Vec3) -> [f32; 3] {
@@ -39,3 +39,4 @@ pub fn transform_vertices(verts: &[[f32; 3]], translate: [f32; 3], scale: [f32; 
 pub fn edge(a: [f32; 2], b: [f32; 2], p: [f32; 2]) -> f32 {
     (p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])
 }
+

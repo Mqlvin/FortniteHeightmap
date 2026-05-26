@@ -3,6 +3,8 @@
 mod heightmap;
 mod gui;
 mod chunk;
+mod mesh;
+mod math;
 
 fn main() {
     // generate_heightmap("./DashberryData/chunks", "./DashberryData/Assets", 4096).unwrap();

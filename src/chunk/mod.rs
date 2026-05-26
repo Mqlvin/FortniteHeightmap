@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 use serde::Deserialize;
-use crate::heightmap::{error::GenerationError, mesh::MeshEntry};
+use crate::{heightmap::error::GenerationError, mesh::MeshEntry};
 
 
 #[derive(Debug, Deserialize)]

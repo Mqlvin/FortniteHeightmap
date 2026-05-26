@@ -2,7 +2,7 @@ use image::{ImageBuffer, Luma};
 use rayon::prelude::*;
 use std::{fs::File, io::BufWriter, sync::Mutex};
 
-use crate::heightmap::{error::GenerationError, math::edge};
+use crate::{heightmap::error::GenerationError, math::edge};
 
 pub fn rasterize_heightmap(
     vertices: &[[f32; 3]],
