@@ -48,6 +48,7 @@ impl Default for MyApp {
 impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         ui.visuals_mut().override_text_color = Some(Color32::from_rgb(200, 200, 200));
+        ui.style_mut().interaction.selectable_labels = false;
 
         let frame_design = egui::containers::Frame {
             inner_margin: egui::epaint::Margin { left: 20, right: 20, top: 20, bottom: 20 },
@@ -168,7 +169,7 @@ impl eframe::App for MyApp {
 }
 
 fn add_information(ui: &mut Ui, text: &str) {
-    ui.label(egui::RichText::new("❓").monospace()).on_hover_text(text);
+    ui.label(egui::RichText::new("ℹ").monospace()).on_hover_text(text).on_hover_cursor(egui::CursorIcon::Help);
 }
 
 fn valid_settings(app: &MyApp) -> bool {
