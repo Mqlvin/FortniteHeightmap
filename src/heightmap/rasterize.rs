@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 use std::sync::Mutex;
 
-use crate::{heightmap::error::GenerationError, math::edge};
+use crate::{heightmap::{error::GenerationError, io::AdvancedSettings}, math::edge};
 
 pub fn rasterize_heightmap(
     vertices: &[[f32; 3]],
@@ -13,25 +13,58 @@ pub fn rasterize_heightmap(
     z_min: f32,
     z_max: f32,
     width: u32,
-    height: u32
-) -> Result<(Vec<f32>, f32), GenerationError> {
+    height: u32,
+    settings: &AdvancedSettings,
+) -> Result<(Vec<f32>, u32, u32, f32), GenerationError> {
     let x_span = x_max - x_min;
     let y_span = y_max - y_min;
     let z_span = z_max - z_min;
 
     if x_span == 0.0 || y_span == 0.0 || z_span == 0.0 {
-        return Err(GenerationError::MapRasterizationError("Bounds must have non-zero extent".to_string()));
+        return Err(GenerationError::MapRasterizationError(
+            "Bounds must have non-zero extent".to_string(),
+        ));
     }
 
-    let scale_x = (width as f32 - 1.0) / x_span;
-    let scale_y = (height as f32 - 1.0) / y_span;
-    let scale = scale_x.min(scale_y);
-    let out_w = x_span * scale;
-    let out_h = y_span * scale;
-    let pad_x = (width as f32 - out_w) * 0.5;
-    let pad_y = (height as f32 - out_h) * 0.5;
+    let trim_top = settings.trim_top.clamp(0.0, 100.0) * 0.01;
+    let trim_right = settings.trim_right.clamp(0.0, 100.0) * 0.01;
+    let trim_bottom = settings.trim_bottom.clamp(0.0, 100.0) * 0.01;
+    let trim_left = settings.trim_left.clamp(0.0, 100.0) * 0.01;
 
-    let hm = Mutex::new(vec![f32::NAN; (width * height) as usize]);
+    let crop_x0 = (width as f32 * trim_left).round() as u32;
+    let crop_x1 = (width as f32 * trim_right).round() as u32;
+    let crop_y0 = (height as f32 * trim_top).round() as u32;
+    let crop_y1 = (height as f32 * trim_bottom).round() as u32;
+
+    let crop_w = width.saturating_sub(crop_x0 + crop_x1).max(1);
+    let crop_h = height.saturating_sub(crop_y0 + crop_y1).max(1);
+
+    let crop_x_min = x_min + x_span * trim_left;
+    let crop_x_max = x_max - x_span * trim_right;
+
+    let crop_y_top = y_min + y_span * trim_top;
+    let crop_y_bottom = y_max - y_span * trim_bottom;
+
+    let crop_x_span = crop_x_max - crop_x_min;
+    let crop_y_span = crop_y_bottom - crop_y_top;
+
+    if crop_x_span == 0.0 || crop_y_span == 0.0 {
+        return Err(GenerationError::MapRasterizationError(
+            "Crop bounds collapsed to zero extent".to_string(),
+        ));
+    }
+
+    let scale_x = (crop_w as f32 - 1.0) / crop_x_span.abs();
+    let scale_y = (crop_h as f32 - 1.0) / crop_y_span.abs();
+    let scale = scale_x.min(scale_y);
+
+    let out_w = crop_x_span.abs() * scale;
+    let out_h = crop_y_span.abs() * scale;
+
+    let pad_x = (crop_w as f32 - out_w) * 0.5;
+    let pad_y = (crop_h as f32 - out_h) * 0.5;
+
+    let hm = Mutex::new(vec![f32::NAN; (crop_w * crop_h) as usize]);
     let eps = 1e-7f32;
 
     faces.par_iter().for_each(|face| {
@@ -40,10 +73,9 @@ pub fn rasterize_heightmap(
         let v2 = vertices[face[2]];
 
         let to_screen = |v: [f32; 3]| -> [f32; 3] {
-            // use unified scale and center offsets (pad_x/pad_y)
-            let sx = (v[0] - x_min) * scale + pad_x;
-            let sy = (v[1] - y_min) * scale + pad_y;
-            let rz = (v[2] - z_min) / z_span; // not clamped
+            let sx = (v[0] - crop_x_min) * scale + pad_x;
+            let sy = (crop_y_bottom - v[1]) * scale + pad_y;
+            let rz = v[2];
             [sx, sy, rz]
         };
 
@@ -51,18 +83,15 @@ pub fn rasterize_heightmap(
         let p1 = to_screen(v1);
         let p2 = to_screen(v2);
 
-        // axis-aligned integer bounds from float coords
         let min_x = p0[0].min(p1[0]).min(p2[0]).floor().max(0.0) as i32;
-        let max_x = p0[0].max(p1[0]).max(p2[0]).ceil().min((width as f32) - 1.0) as i32;
+        let max_x = p0[0].max(p1[0]).max(p2[0]).ceil().min((crop_w as f32) - 1.0) as i32;
         let min_y = p0[1].min(p1[1]).min(p2[1]).floor().max(0.0) as i32;
-        let max_y = p0[1].max(p1[1]).max(p2[1]).ceil().min((height as f32) - 1.0) as i32;
+        let max_y = p0[1].max(p1[1]).max(p2[1]).ceil().min((crop_h as f32) - 1.0) as i32;
 
-        // quick reject if bbox empty
         if min_x > max_x || min_y > max_y {
             return;
         }
 
-        // local edge function using float coords
         let a = [p0[0], p0[1]];
         let b = [p1[0], p1[1]];
         let c = [p2[0], p2[1]];
@@ -74,16 +103,16 @@ pub fn rasterize_heightmap(
 
         let is_top_left = |ax: f32, ay: f32, bx: f32, by: f32| -> bool {
             if (ay - by).abs() <= eps {
-                return ax < bx;
+                ax < bx
+            } else {
+                ay < by
             }
-            ay < by
         };
 
         let mut local_updates: Vec<(usize, f32)> = Vec::new();
 
         for y in min_y..=max_y {
             for x in min_x..=max_x {
-                // sample at pixel center
                 let px = x as f32 + 0.5;
                 let py = y as f32 + 0.5;
 
@@ -91,45 +120,30 @@ pub fn rasterize_heightmap(
                 let w1 = edge([c[0], c[1]], [a[0], a[1]], [px, py]);
                 let w2 = edge([a[0], a[1]], [b[0], b[1]], [px, py]);
 
-                // fast reject depending on winding
                 if ccw {
                     if w0 < -eps || w1 < -eps || w2 < -eps {
                         continue;
                     }
-                } else {
-                    if w0 > eps || w1 > eps || w2 > eps {
-                        continue;
-                    }
+                } else if w0 > eps || w1 > eps || w2 > eps {
+                    continue;
                 }
 
-                let mut on_edge_reject = false;
-                if w0.abs() <= eps {
-                    if !is_top_left(b[0], b[1], c[0], c[1]) {
-                        on_edge_reject = true;
-                    }
+                if w0.abs() <= eps && !is_top_left(b[0], b[1], c[0], c[1]) {
+                    continue;
                 }
-                if on_edge_reject { continue; }
-                if w1.abs() <= eps {
-                    if !is_top_left(c[0], c[1], a[0], a[1]) {
-                        on_edge_reject = true;
-                    }
+                if w1.abs() <= eps && !is_top_left(c[0], c[1], a[0], a[1]) {
+                    continue;
                 }
-                if on_edge_reject { continue; }
-                if w2.abs() <= eps {
-                    if !is_top_left(a[0], a[1], b[0], b[1]) {
-                        on_edge_reject = true;
-                    }
+                if w2.abs() <= eps && !is_top_left(a[0], a[1], b[0], b[1]) {
+                    continue;
                 }
-                if on_edge_reject { continue; }
 
-                // compute barycentrics from float edge values and area
                 let l0 = w0 / area;
                 let l1 = w1 / area;
                 let l2 = w2 / area;
 
                 let z = l0 * p0[2] + l1 * p1[2] + l2 * p2[2];
-
-                let idx = (y as u32 * width + x as u32) as usize;
+                let idx = (y as u32 * crop_w + x as u32) as usize;
                 local_updates.push((idx, z));
             }
         }
@@ -144,15 +158,5 @@ pub fn rasterize_heightmap(
         }
     });
 
-    let mut hm = hm.into_inner().unwrap();
-    for v in hm.iter_mut() {
-        if !v.is_nan() {
-            // clamp normalized z to 0..1 for mapping, then map to world z
-            let nz = v.clamp(0.0, 1.0);
-            *v = nz * z_span + z_min;
-        }
-    }
-
-    Ok((hm, scale))
+    Ok((hm.into_inner().unwrap(), crop_w, crop_h, scale))
 }
-
