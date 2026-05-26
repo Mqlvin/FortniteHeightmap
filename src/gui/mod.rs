@@ -1,9 +1,9 @@
 use eframe::egui;
-use egui::{Color32, Ui};
-use crate::{chunk::get_assets_folder, heightmap::{error::GenerationError, generate_heightmap}};
+use egui::{Color32, Slider, Ui};
+use crate::{chunk::get_assets_folder, heightmap::{error::GenerationError, generate_heightmap, io::AdvancedSettings}};
 
 const WINDOW_WIDTH: f32 = 640.;
-const WINDOW_HEIGHT: f32 = 520.;
+const WINDOW_HEIGHT: f32 = 600.;
 const EXPORT_RESOLUTIONS: [u32; 6] = [512u32, 1024, 2048, 4096, 8192, 16384];
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -29,7 +29,7 @@ struct MyApp {
     pub resolution: u32,
     pub resolution_slider_value: usize,
     pub export_terrain_map: bool,
-
+    pub advanced_output_settings: AdvancedSettings,
     pub generation_error: Option<GenerationError>,
 }
 
@@ -42,6 +42,7 @@ impl Default for MyApp {
              resolution: EXPORT_RESOLUTIONS[3],
              resolution_slider_value: 3,
              generation_error: None,
+             advanced_output_settings: AdvancedSettings::default(),
              export_terrain_map: false,
          }
     }
@@ -122,7 +123,7 @@ impl eframe::App for MyApp {
 
             ui.horizontal(|ui| {
                 ui.label("Image resolution: ");
-                ui.add(egui::Slider::new(&mut self.resolution_slider_value, 0..=EXPORT_RESOLUTIONS.len().saturating_sub(1)).show_value(false));
+                ui.add(Slider::new(&mut self.resolution_slider_value, 0..=EXPORT_RESOLUTIONS.len().saturating_sub(1)).show_value(false));
                 self.resolution = EXPORT_RESOLUTIONS[self.resolution_slider_value];
                 ui.label(format!("{}px{}", self.resolution, if self.resolution > 4096 {" (RAM-heavy)"} else {""}));
             });
@@ -133,6 +134,28 @@ impl eframe::App for MyApp {
                 ui.label(": ");
                 ui.checkbox(&mut self.export_terrain_map, "");
                 ui.label(if self.export_terrain_map { "Yes" } else { "No" });
+            });
+
+            egui::CollapsingHeader::new("Advanced Settings").show(ui, |ui| {
+                // Labels differ from variables due to transformation before saving image
+                // Probs should refactor variable names at some point
+                ui.horizontal(|ui| {
+                    ui.label("Trim top %:       ");
+                    ui.add(Slider::new(&mut self.advanced_output_settings.trim_right, 0.0..=30.0).step_by(0.1));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Trim bottom %:         ");
+                    ui.add(Slider::new(&mut self.advanced_output_settings.trim_left, 0.0..=30.0).step_by(0.1));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Trim left %: ");
+                    ui.add(Slider::new(&mut self.advanced_output_settings.trim_bottom, 0.0..=30.0).step_by(0.1));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Trim right %:         ");
+                    ui.add(Slider::new(&mut self.advanced_output_settings.trim_top, 0.0..=30.0).step_by(0.1));
+                });
+                // TODO, min/max luma
             });
 
             ui.add_space(10.0);
@@ -152,7 +175,8 @@ impl eframe::App for MyApp {
                         &self.assets_directory.as_ref().unwrap(),
                         "./out",
                         self.resolution,
-                        self.export_terrain_map
+                        self.export_terrain_map,
+                        &self.advanced_output_settings
                     );
 
                     if let Err(err) = heightmap_result {

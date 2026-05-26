@@ -1,11 +1,18 @@
 use std::{fs, path::PathBuf};
-use crate::{chunk::{get_terrain_chunk, identify_chunks, identify_meshes}, heightmap::{error::GenerationError, io::{ExportData, save_heightmap_png, write_export}, rasterize::rasterize_heightmap}, mesh::{MeshEntry, load_all_vertices_faces}};
+use crate::{chunk::{get_terrain_chunk, identify_chunks, identify_meshes}, heightmap::{error::GenerationError, io::{AdvancedSettings, ExportData, save_heightmap_png, write_export}, rasterize::rasterize_heightmap}, mesh::{MeshEntry, load_all_vertices_faces}};
 
 mod rasterize;
-mod io;
+pub mod io;
 pub mod error;
 
-pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_directory: &str, output_size: u32, save_terrain_separately: bool) -> Result<(), GenerationError> {
+pub fn generate_heightmap(
+    chunk_directory: &str,
+    assets_directory: &str,
+    save_directory: &str,
+    output_size: u32,
+    save_terrain_separately: bool,
+    output_settings: &AdvancedSettings,
+) -> Result<(), GenerationError> {
     fs::create_dir_all(save_directory).map_err(|e| GenerationError::FileIO(e))?;
 
     let chunk_files: Vec<PathBuf> = identify_chunks(chunk_directory)?;
@@ -47,7 +54,7 @@ pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_di
 
     println!("Saving map height data as image");
     let save_path = format!("{}/heightmap.png", save_directory);
-    save_heightmap_png(&save_path, &result, output_size, output_size, min_z as f32, max_z as f32)?;
+    save_heightmap_png(&save_path, &result, output_size, output_size, min_z as f32, max_z as f32, output_settings)?;
 
     drop(vertices_all); drop(faces_all); // drop memory here in before loading just terrain mesh data
 
@@ -76,7 +83,7 @@ pub fn generate_heightmap(chunk_directory: &str, assets_directory: &str, save_di
 
         println!("Saving terrain height data as image");
         let save_path = format!("{}/terrainmap.png", save_directory);
-        save_heightmap_png(&save_path, &terrain_result, output_size, output_size, min_z as f32, max_z as f32)?;
+        save_heightmap_png(&save_path, &terrain_result, output_size, output_size, min_z as f32, max_z as f32, output_settings)?;
     }
 
 
