@@ -1,6 +1,6 @@
 use eframe::egui;
 use egui::{Color32, Ui};
-use crate::heightmap::{error::GenerationError, generate_heightmap};
+use crate::{chunk::get_assets_folder, heightmap::{error::GenerationError, generate_heightmap}};
 
 const WINDOW_WIDTH: f32 = 640.;
 const WINDOW_HEIGHT: f32 = 520.;
@@ -25,6 +25,7 @@ pub fn run() -> eframe::Result {
 struct MyApp {
     pub assets_directory: Option<String>,
     pub chunks_directory: Option<String>,
+    pub failed_autodetect_assets: bool,
     pub resolution: u32,
     pub resolution_slider_value: usize,
     pub export_terrain_map: bool,
@@ -37,6 +38,7 @@ impl Default for MyApp {
          Self {
              assets_directory: None,
              chunks_directory: None,
+             failed_autodetect_assets: false,
              resolution: EXPORT_RESOLUTIONS[3],
              resolution_slider_value: 3,
              generation_error: None,
@@ -67,23 +69,6 @@ impl eframe::App for MyApp {
 
             ui.heading("Input");
 
-            ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Assets directory");
-                    add_information(ui, "Select the folder of Fortnite meshes");
-                    ui.label(": ");
-                    if ui.button("🗀  Select folder").clicked() && let Some(path) = rfd::FileDialog::new().pick_folder() {
-                        self.assets_directory = Some(path.display().to_string());
-                    }
-                });
-
-                if self.assets_directory.is_some() {
-                    ui.monospace(self.assets_directory.as_ref().unwrap());
-                } else {
-                    ui.monospace("...");
-                }
-            });
-
             ui.add_space(3.0);
 
             ui.vertical(|ui| {
@@ -93,6 +78,13 @@ impl eframe::App for MyApp {
                     ui.label(": ");
                     if ui.button("🗀  Select folder").clicked() && let Some(path) = rfd::FileDialog::new().pick_folder() {
                         self.chunks_directory = Some(path.display().to_string());
+                        let assets_folder = get_assets_folder(&self.chunks_directory.as_ref().expect("chunks_directory as Some(...)"));
+                        if assets_folder.is_some() {
+                            self.assets_directory = Some(assets_folder.unwrap());
+                            self.failed_autodetect_assets = false;
+                        } else {
+                            self.failed_autodetect_assets = true;
+                        }
                     }
                 });
 
@@ -102,6 +94,25 @@ impl eframe::App for MyApp {
                     ui.monospace("...");
                 }
             });
+            
+            if self.chunks_directory.is_some() && self.assets_directory.is_none() || self.failed_autodetect_assets {
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Assets directory (failed auto-detect)");
+                        add_information(ui, "Select the folder of Fortnite meshes");
+                        ui.label(": ");
+                        if ui.button("🗀  Select folder").clicked() && let Some(path) = rfd::FileDialog::new().pick_folder() {
+                            self.assets_directory = Some(path.display().to_string());
+                        }
+                    });
+
+                    if self.assets_directory.is_some() {
+                        ui.monospace(self.assets_directory.as_ref().unwrap());
+                    } else {
+                        ui.monospace("...");
+                    }
+                });
+            }
 
             ui.add_space(10.0);
             ui.separator();

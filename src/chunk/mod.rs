@@ -1,5 +1,6 @@
 use std::{fs, path::PathBuf};
 use serde::Deserialize;
+use serde_json::Value;
 use crate::{heightmap::error::GenerationError, mesh::MeshEntry};
 
 
@@ -52,4 +53,29 @@ pub fn get_terrain_chunk(chunks: &Vec<PathBuf>) -> Option<&PathBuf> {
         })
         .find(|(_, name)| name.len() != 25 && !name.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit()))
         .map(|(path, _)| path)
+}
+
+pub fn get_assets_folder(chunks_dir: &str) -> Option<String> {
+    let terrain_chunk_path = match identify_chunks(chunks_dir) {
+        Ok(chunks) => {
+            match get_terrain_chunk(&chunks) {
+                Some(tc) => {
+                    tc.clone()
+                },
+                None => return None
+            }
+        },
+        Err(_) => return None
+    };
+
+    let tc_text = fs::read_to_string(terrain_chunk_path).ok()?;
+    let json: Value = serde_json::from_str(&tc_text).ok()?;
+    let metadata_obj = json.get("MetaData")?;
+    let asset_path = metadata_obj.get("AssetsRoot")?.as_str()?;
+
+    if fs::exists(asset_path).ok()? {
+        Some(asset_path.to_string())
+    } else {
+        None
+    }
 }
