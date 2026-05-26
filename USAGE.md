@@ -35,7 +35,7 @@ Run `python/export_server.py` with Python. Alternatively, if you do not have Pyt
 
 **Step 5: Export Fortnite assets**<br>
 In FortnitePorting, press `Map`.<br>
-At the top right of the screen, press `Select All`, and at the bottom of the screen, press `Include Main Level` (in this order). In Flags, ensure **only** `Landscape`, `Actors` and `Instanced Actors` are enabled.<br>
+At the top right of the screen, press `Select All`, and at the bottom of the screen, press `Include Main Level` (**in this order**). In Flags, ensure **only** `Landscape`, `Actors` and `Instanced Actors` are enabled.<br>
 Press `Export to Blender` and wait for this to complete.
 > Once complete, close FortnitePorting, but leave `export_server.py` running as it has printed some valuable information for the next steps.
 
@@ -43,8 +43,8 @@ Press `Export to Blender` and wait for this to complete.
 
 **Step 6: Open the Heightmap Generator**<br>
 Open the Fortnite Heightmap generator executable downloaded from this repository. You will need to fill out two boxes in the *Input* section:
-- Assets folder - Select the folder containing Fortnite assets
 - Chunks folder - Select the folder containing chunks
+- Assets folder (if you don't see this, it's been auto-detected) - Select the folder containing Fortnite assets
 > Both folders' locations were printed in the `export_server.py` console window, you can just copy these across
 
 <br>
