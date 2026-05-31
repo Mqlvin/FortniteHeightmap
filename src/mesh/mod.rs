@@ -73,7 +73,7 @@ pub fn load_all_vertices_faces(meshes: &Vec<MeshEntry>, assets_directory: &str) 
         let transformed = transform_vertices(&base.vertices,
             [loc[0], -loc[1], loc[2]],
             scl,
-            [rot[0], rot[2], -rot[1]],
+            [rot[0], -rot[2], -rot[1]],
         );
 
         for v in transformed {
