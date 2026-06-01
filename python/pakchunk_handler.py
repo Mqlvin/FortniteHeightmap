@@ -58,6 +58,7 @@ def cull(mesh_obj: any):
     path_blacklists = [
         "/Engine/BasicShapes/Plane.Plane",
         "/Environments/Landscape/Meshes/Background",
+        "decal",
     ]
     for path_blacklist in path_blacklists:
         if path_blacklist.lower() in mesh_path.lower():
