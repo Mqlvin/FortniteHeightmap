@@ -32,13 +32,14 @@ pub struct MeshData {
 }
 
 // load + transform vertices of all actors in world
-pub fn load_all_vertices_faces(meshes: &Vec<MeshEntry>, assets_directory: &str) -> Result<(Vec<[f32; 3]>, Vec<[usize; 3]>), GenerationError> {
+pub fn load_all_vertices_faces(meshes: &Vec<MeshEntry>, assets_directory: &str) -> Result<(Vec<[f32; 3]>, Vec<[usize; 3]>, Vec<usize>), GenerationError> {
     let mut cache: HashMap<PathBuf, MeshData> = HashMap::new();
     let mut vertices_all: Vec<[f32; 3]> = Vec::new();
     let mut faces_all: Vec<[usize; 3]> = Vec::new();
+    let mut face_to_mesh: Vec<usize> = Vec::new();
     let mut offset = 0usize;
 
-    for mesh in meshes {
+    for (mesh_idx, mesh) in meshes.iter().enumerate() {
         // path relative to assets folder
         let asset_path = match &mesh.path {
             Some(p) if !p.is_empty() => p,
@@ -80,7 +81,12 @@ pub fn load_all_vertices_faces(meshes: &Vec<MeshEntry>, assets_directory: &str) 
             vertices_all.push(v);
         }
         for f in &base.indices {
-            faces_all.push([f[0] as usize + offset, f[1] as usize + offset, f[2] as usize + offset]);
+            faces_all.push([
+                f[0] as usize + offset,
+                f[1] as usize + offset,
+                f[2] as usize + offset,
+            ]);
+            face_to_mesh.push(mesh_idx);
         }
         offset += base.vertices.len();
     }
@@ -89,7 +95,7 @@ pub fn load_all_vertices_faces(meshes: &Vec<MeshEntry>, assets_directory: &str) 
         return Err(GenerationError::LoadMeshError);
     }
 
-    Ok((vertices_all, faces_all))
+    Ok((vertices_all, faces_all, face_to_mesh))
 }
 
 

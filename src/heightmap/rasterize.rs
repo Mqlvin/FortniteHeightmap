@@ -15,7 +15,7 @@ pub fn rasterize_heightmap(
     width: u32,
     height: u32,
     settings: &AdvancedSettings,
-) -> Result<(Vec<f32>, u32, u32, f32), GenerationError> {
+) -> Result<(Vec<f32>, Vec<usize>, u32, u32, f32), GenerationError> {
     let x_span = x_max - x_min;
     let y_span = y_max - y_min;
     let z_span = z_max - z_min;
@@ -67,10 +67,11 @@ pub fn rasterize_heightmap(
     };
 
     let hm = Mutex::new(vec![f32::NAN; (out_w * out_h) as usize]);
+    let face_map = Mutex::new(vec![usize::MAX; (out_w * out_h) as usize]);
     let eps = 1e-7f32;
     let inv_area_eps = 1e-12f32;
 
-    faces.par_iter().for_each(|face| {
+    faces.par_iter().enumerate().for_each(|(face_id, face)| {
         let [i0, i1, i2] = *face;
         let v0 = vertices[i0];
         let v1 = vertices[i1];
@@ -147,18 +148,21 @@ pub fn rasterize_heightmap(
 
                 let z = (w0 * p0[2] + w1 * p1[2] + w2 * p2[2]) / area;
                 let idx = (y as u32 * out_w + x as u32) as usize;
-                updates.push((idx, z));
+                updates.push((idx, z, face_id));
             }
         }
 
         let mut hm_guard = hm.lock().unwrap();
-        for (idx, z) in updates {
+        let mut face_map_guard = face_map.lock().unwrap();
+        for (idx, z, face_id) in updates {
             let current = &mut hm_guard[idx];
             if current.is_nan() || z > *current {
                 *current = z;
+                face_map_guard[idx] = face_id;
             }
+
         }
     });
 
-    Ok((hm.into_inner().unwrap(), out_w, out_h, scale))
+    Ok((hm.into_inner().unwrap(), face_map.into_inner().unwrap(), out_w, out_h, scale))
 }

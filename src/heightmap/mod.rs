@@ -1,4 +1,5 @@
-use std::{fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf};
+
 use crate::{chunk::{get_terrain_chunk, identify_chunks, identify_meshes}, heightmap::{error::GenerationError, io::{AdvancedSettings, ExportData, save_heightmap_png, write_export}, rasterize::rasterize_heightmap}, mesh::{MeshEntry, load_all_vertices_faces}};
 
 mod rasterize;
@@ -25,7 +26,7 @@ pub fn generate_heightmap(
     let meshes: Vec<MeshEntry> = identify_meshes(&chunk_files)?;
     println!("Identified {} meshes", meshes.len());
 
-    let (vertices_all, faces_all) = load_all_vertices_faces(&meshes, assets_directory)?;
+    let (vertices_all, faces_all, face_to_mesh) = load_all_vertices_faces(&meshes, assets_directory)?;
 
     let min_x = vertices_all.iter().map(|v| v[0]).fold(f32::INFINITY, f32::min);
     let max_x = vertices_all.iter().map(|v| v[0]).fold(f32::NEG_INFINITY, f32::max);
@@ -36,7 +37,7 @@ pub fn generate_heightmap(
 
     println!("Got min/max: \n\tX: {} {} \n\tY: {} {} \n\tZ: {} {}", min_x, max_x, min_y, max_y, min_z, max_z);
 
-    let (result, vec_w, vec_h, scale_used) = rasterize_heightmap(
+    let (result, faces_vec, vec_w, vec_h, scale_used) = rasterize_heightmap(
         &vertices_all,
         &faces_all,
         min_x,
@@ -59,6 +60,9 @@ pub fn generate_heightmap(
     let save_path = format!("{}/heightmap.png", save_directory);
     save_heightmap_png(&save_path, &result, vec_w, vec_h, grey_per_unit, grey_base)?;
 
+    println!("Image size: {} and faces_vec: {}", vec_w * vec_h, faces_vec.len());
+    generate_mesh_lookup(&meshes, &faces_vec, vec_w, &face_to_mesh).expect("It works");
+
     drop(vertices_all); drop(faces_all); // drop memory here in before loading just terrain mesh data
     if save_terrain_separately {
         // unfortunately this has to be here. we must load all vertices of all meshes to identify
@@ -69,8 +73,8 @@ pub fn generate_heightmap(
         println!("Saving separate terrain heightmap");
         
         let terrain_meshes = identify_meshes(&vec![terrain_chunk.expect("Already unwrapped").clone()])?;
-        let (vertices_terrain, faces_terrain) = load_all_vertices_faces(&terrain_meshes, assets_directory)?;
-        let (terrain_result, _, _, _) = rasterize_heightmap(
+        let (vertices_terrain, faces_terrain, _) = load_all_vertices_faces(&terrain_meshes, assets_directory)?;
+        let (terrain_result, _, _, _, _) = rasterize_heightmap(
             &vertices_terrain,
             &faces_terrain,
             min_x,
@@ -110,3 +114,42 @@ pub fn generate_heightmap(
 }
 
 
+fn generate_mesh_lookup(
+    meshes: &Vec<MeshEntry>,
+    faces: &Vec<usize>,
+    faces_w: u32,
+    face_to_mesh: &Vec<usize>,
+) -> Result<(HashMap<usize, MeshEntry>, Vec<usize>), String> {
+    let mut mesh_lookup: HashMap<usize, MeshEntry> = HashMap::new();
+    let mut pixel_mesh_ids: Vec<usize> = Vec::with_capacity(faces.len());
+
+    for &face_id in faces.iter() {
+        let mesh_id = *face_to_mesh
+            .get(face_id)
+            .ok_or_else(|| format!("Face id {} out of bounds", face_id))?;
+
+        mesh_lookup
+            .entry(mesh_id)
+            .or_insert_with(|| meshes[mesh_id].clone());
+
+        pixel_mesh_ids.push(mesh_id);
+    }
+
+    let mesh_lookup_text = mesh_lookup
+        .iter()
+        .map(|(mesh_id, mesh_entry)| format!("{} {:?}", mesh_id, mesh_entry))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    fs::write("./mesh_lookup.txt", mesh_lookup_text).map_err(|e| e.to_string())?;
+
+    let pixel_mesh_text = pixel_mesh_ids
+        .chunks(faces_w as usize)
+        .map(|row| row.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(" "))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    fs::write("./meshids.txt", pixel_mesh_text).map_err(|e| e.to_string())?;
+
+    Ok((mesh_lookup, pixel_mesh_ids))
+}
